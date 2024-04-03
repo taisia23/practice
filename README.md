@@ -257,3 +257,247 @@ public class MainTest {
 }
 
 ```
+# Завдання 3
+1. Як основа використовувати вихідний текст проекту попередньої лабораторної роботи. Забезпечити розміщення результатів обчислень уколекції з можливістю збереження/відновлення.
+2. Використовуючи шаблон проектування Factory Method (Virtual Constructor), розробити ієрархію, що передбачає розширення рахунок додавання
+нових відображуваних класів.
+3. Розширити ієрархію інтерфейсом "фабрикованих" об'єктів, що представляє набір методів для відображення результатів обчислень.
+4. Реалізувати ці методи виведення результатів у текстовому виде.
+5. Розробити тареалізувати інтерфейс для "фабрикуючого" методу.
+   
+Main.java
+```java
+package ex03;
+
+import ex02.Calc;
+
+import java.io.IOException;
+import java.util.Scanner;
+
+public class Main {
+
+    /**
+     * Об'єкт реалізуючий інтерфейс {@linkplain View}
+     */
+    private View view;
+
+    /** Ініціалізує поле {@linkplain Main} */
+    public Main(View view) {
+        this.view = view;
+    }
+
+    /**
+     * Відображення меню програми
+     */
+    protected void menu() throws IOException {
+        Scanner sc = new Scanner(System.in);
+        boolean run = true;
+
+        while (run) {
+            System.out.println("1 - Задати число");
+            System.out.println("2 - Вивести представлення чисел");
+            System.out.println("3 - Зберегти");
+            System.out.println("4 - Відновити");
+            System.out.println("5 - Вийти");
+            System.out.print("\nВиберіть функцію: ");
+
+            String selected = sc.nextLine();
+
+            switch (selected) {
+                case "1":
+                    System.out.println("Введіть число: ");
+                    view.viewInit(sc.nextInt());
+                    break;
+                case "2":
+                    view.viewShow();
+                    break;
+                case "3":
+                    view.viewSave();
+                    System.out.println("Клас збережено");
+                    break;
+                case "4":
+                    try {
+                        view.viewRestore();
+                    } catch (Exception e) {
+                        System.out.println("Помилка відновлено");
+                    }
+                    break;
+                case "5":
+                    run = false;
+            }
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+        Main main = new Main(new ViewableResult().getView());
+        main.menu();
+    }
+}
+```
+
+View.java
+```java
+package ex03;
+
+import ex02.Calc;
+
+import java.io.IOException;
+import java.util.ArrayList;
+
+/** Шаблон проєктування Factory Method. Інтерфейс фабрикуємих об'єктів об'являє методи відображення об'єктів
+ * @author Таїсія Деркач
+ */
+public interface View {
+    /** Відображає заголовки */
+    public void viewHeader();
+    /** Відображає головну чатину */
+    public void viewBody();
+    /** Відображає закінчення */
+    public void viewFooter();
+    /** Відображає об'єкт цілком */
+    public void viewShow();
+    /** Виконує ініціалізацію */
+    public void viewInit(int num);
+    /** Повертає список елементів */
+    public ArrayList<Calc> viewItems();
+    /** Зберігає для майбутнього відновлення */
+    public void viewSave() throws IOException;
+    /** Відновлює раніше збережені дані */
+    public void viewRestore() throws Exception;
+}
+```
+
+Viewable.java
+```java
+package ex03;
+
+interface Viewable {
+    /** Створює об'єкт, реалізуючий {@link View} */
+    public View getView();
+}
+
+```
+
+ViewableResult.java
+```java
+package ex03;
+
+public class ViewableResult implements Viewable {
+    /**
+     * Створює об'єкт, реалізуючий {@link View}
+     */
+    @Override
+    public View getView() {
+        return new ViewResult();
+    }
+}
+```
+
+ViewResult.java
+```java
+package ex03;
+
+import ex02.Calc;
+
+import java.io.*;
+import java.util.ArrayList;
+
+public class ViewResult implements View {
+    private ArrayList<Calc> items = new ArrayList<Calc>();
+
+    /**
+     * Конструктор класу {@link ViewResult}
+     */
+    public ViewResult() {
+        this(10);
+    }
+
+    /**
+     * Конструктор класу  {@link ViewResult}
+     *
+     * @param num Кількість елементів
+     */
+    public ViewResult(int num) {
+        this.viewInit(num);
+    }
+
+    /**
+     * Відображає заголовки
+     */
+    @Override
+    public void viewHeader() {
+        System.out.println("Початок представлень");
+    }
+
+    /**
+     * Відображає головну частину
+     */
+    @Override
+    public void viewBody() {
+        for (Calc calc : items) {
+            System.out.println("Двійкове представлення числа " + calc.getNumber() + ": " + calc.getBinRepresentation());
+            System.out.println("Вісімкове представлення числа " + calc.getNumber() + ": " + calc.getOctRepresentation());
+            System.out.println("Шістнадцяткове представлення числа " + calc.getNumber() + ": " + calc.getHexRepresentation());
+        }
+    }
+
+    /**
+     * Відображає закінчення
+     */
+    @Override
+    public void viewFooter() {
+        System.out.println("Кінець представлень");
+    }
+
+    /**
+     * Відображає об'єкт цілком
+     */
+    @Override
+    public void viewShow() {
+        viewHeader();
+        viewBody();
+        viewFooter();
+    }
+
+    /**
+     * Виконує ініціалізацію
+     *
+     * @param num початок
+     */
+    @Override
+    public void viewInit(int num) {
+        items.clear();
+
+        for (int i = 0; i < num; i++) {
+            items.add(new Calc(0));
+        }
+
+        for (int i = 0; i < items.size(); i++) {
+            items.get(i).setNumber(i + num + 1);
+        }
+    }
+
+    /** Повертає список елементів */
+    public ArrayList<Calc> viewItems() {
+        return items;
+    }
+
+    /**
+     * Зберігає для майбутнього відновлення
+     */
+    @Override
+    public void viewSave() throws IOException {
+        ObjectOutputStream objectOutputStream = new ObjectOutputStream(new FileOutputStream("src/ex03/view.ser"));
+        objectOutputStream.writeObject(this.items);
+    }
+
+    /**
+     * Відновлює раніше збережені дані
+     */
+    @Override
+    public void viewRestore() throws Exception {
+        ObjectInputStream objectInputStream = new ObjectInputStream(new FileInputStream("src/ex03/view.ser"));
+        this.items = (ArrayList<Calc>) objectInputStream.readObject();
+    }
+}
+```
