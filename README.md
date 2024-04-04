@@ -257,6 +257,10 @@ public class MainTest {
 }
 
 ```
+Результат:
+![](images/ex02/1.png)
+![](images/ex02/2.png)
+
 # Завдання 3
 1. Як основа використовувати вихідний текст проекту попередньої лабораторної роботи. Забезпечити розміщення результатів обчислень уколекції з можливістю збереження/відновлення.
 2. Використовуючи шаблон проектування Factory Method (Virtual Constructor), розробити ієрархію, що передбачає розширення рахунок додавання
@@ -501,6 +505,9 @@ public class ViewResult implements View {
     }
 }
 ```
+Результат:
+![](images/ex03/1.png)
+![](images/ex03/2.png)
 
 # Завдання 4
 
@@ -670,5 +677,7 @@ public class ViewableTable extends ViewableResult {
     }
 }
 ```
-
+Результат:
+![](images/ex04/1.png)
+![](images/ex04/2.png)
 
