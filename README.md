@@ -258,6 +258,7 @@ public class MainTest {
 
 ```
 Результат:
+
 ![](images/ex02/1.png)
 ![](images/ex02/2.png)
 
@@ -506,6 +507,7 @@ public class ViewResult implements View {
 }
 ```
 Результат:
+
 ![](images/ex03/1.png)
 ![](images/ex03/2.png)
 
@@ -678,6 +680,7 @@ public class ViewableTable extends ViewableResult {
 }
 ```
 Результат:
+
 ![](images/ex04/1.png)
 ![](images/ex04/2.png)
 
