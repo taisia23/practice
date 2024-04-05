@@ -512,7 +512,6 @@ public class ViewResult implements View {
 ![](images/ex03/2.png)
 
 # Завдання 4
-
 1.За основу використовувати вихідний текст проекту попередньої лабораторної роботи Використовуючи шаблон проектування Factory Method
 (Virtual Constructor), розширити ієрархію похідними класами, реалізують методи для подання результатів у вигляді текстової
 таблиці. Параметри відображення таблиці мають визначатися користувачем.
@@ -683,4 +682,498 @@ public class ViewableTable extends ViewableResult {
 
 ![](images/ex04/1.png)
 ![](images/ex04/2.png)
+
+# Завдання 5
+1. Реалізувати можливість скасування (undo) операцій (команд).
+2. Продемонструвати поняття "макрокоманда"
+3.При розробці програми використовувати шаблон Singletone.
+4. Забезпечити діалоговий інтерфейс із користувачем.
+5.Розробити клас для тестування функціональності програми.
+Application.java
+```java
+package ex05;
+
+import ex03.View;
+import ex04.ViewableTable;
+
+/**
+ * Клас, що представляє додаток, який використовується для управління меню та виконання команд.
+ */
+public class Application {
+    private static final Application instance = new Application(); // Єдиний екземпляр додатку
+    private View view = new ViewableTable().getView();
+    private Menu menu = new Menu();
+
+    private Application() {
+        // Приватний конструктор для заборони створення екземплярів ззовні класу
+    }
+
+    /**
+     * Метод для отримання єдиного екземпляру додатку.
+     *
+     * @return єдиний екземпляр додатку
+     */
+    public static Application getInstance() {
+        return instance;
+    }
+
+    /**
+     * Метод для запуску додатку, який додає команди до меню та виконує їх.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання
+     */
+    public void run() throws Exception {
+        menu.add(new ViewConsoleCommand(view));
+        menu.add(new GenerateConsoleCommand(view));
+        menu.add(new SaveConsoleCommand(view));
+        menu.add(new RestoreConsoleCommand(view));
+        menu.add(new UndoConsoleCommand(view));
+        menu.execute();
+    }
+}
+```
+
+Command.java
+```java
+package ex05;
+
+/**
+ * Інтерфейс, що представляє команду, яка може бути виконана.
+ */
+public interface Command {
+    /**
+     * Метод для виконання команди.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання команди
+     */
+    void execute() throws Exception;
+}
+```
+
+ConsoleCommand.java
+```java
+package ex05;
+
+/**
+ * Інтерфейс, який розширює інтерфейс Command та представляє команду консолі з гарячою клавішою.
+ */
+public interface ConsoleCommand extends Command {
+    /**
+     * Метод, що повертає гарячу клавішу для команди консолі.
+     *
+     * @return гаряча клавіша для команди
+     */
+    char getKey();
+}
+```
+
+GenerateConsoleCommand.java
+```java
+package ex05;
+
+import ex03.View;
+
+import java.io.IOException;
+import java.util.Scanner;
+
+/**
+ * Клас, який представляє команду для консолі.
+ */
+public class GenerateConsoleCommand implements ConsoleCommand {
+    private final View view;
+
+    /**
+     * Конструктор, що ініціалізує об'єкт команди з вказаним представленням даних.
+     *
+     * @param view представлення даних
+     */
+    public GenerateConsoleCommand(View view) {
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди.
+     *
+     * @return ключ команди
+     */
+    public char getKey() {
+        return '2';
+    }
+
+    /**
+     * Повертає рядок, що представляє команду.
+     *
+     * @return рядок команди
+     */
+    public String toString() {
+        return "Ввести";
+    }
+
+    /**
+     * Виконує команду, яка зчитує кількість результатів з консолі та ініціалізує відображення з вказаною кількістю результатів.
+     *
+     * @throws IOException виняток, якщо сталася помилка вводу/виводу
+     */
+    @Override
+    public void execute() throws IOException {
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.print("Кількість результатів: ");
+        int count = scanner.nextInt();
+
+        view.viewInit(count);
+    }
+}
+```
+
+Main.java
+```java
+package ex05;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Application app = Application.getInstance();
+        app.run();
+    }
+}
+```
+
+Menu.java
+```java
+package ex05;
+
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Клас, що представляє меню команд.
+ */
+public class Menu implements Command {
+    private ArrayList<ConsoleCommand> menu = new ArrayList<>();
+
+    /**
+     * Додає нову команду до меню.
+     *
+     * @param command команда для додавання
+     * @return додана команда
+     */
+    public ConsoleCommand add(ConsoleCommand command) {
+        menu.add(command);
+        return command;
+    }
+
+    /**
+     * Отримує список команд меню.
+     *
+     * @return список команд меню
+     */
+    public List<ConsoleCommand> getCommands() {
+        return menu;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder commandsList = new StringBuilder();
+
+        for (ConsoleCommand command : menu) {
+            commandsList.append(String.format("%c - %s | ", command.getKey(), command));
+        }
+
+        return commandsList.toString();
+    }
+
+    /**
+     * Виконує команди з меню.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання команди
+     */
+    @Override
+    public void execute() throws Exception {
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+
+        menuLoop:
+        while (true) {
+            System.out.println(this);
+            System.out.print("Виберіть команду: ");
+
+            char key = in.readLine().charAt(0);
+
+            if (key == '0') {
+                return;
+            }
+
+            for (ConsoleCommand command : menu) {
+                if (key == command.getKey()) {
+                    command.execute();
+                    continue menuLoop;
+                }
+            }
+
+            System.out.println("Не вірна команда!");
+        }
+    }
+}
+```
+
+RestoreConsoleComand.java
+```java
+package ex05;
+
+import ex03.View;
+
+/**
+ * Клас, що представляє команду для консолі.
+ */
+public class RestoreConsoleCommand implements ConsoleCommand {
+    private final View view;
+
+    /**
+     * Конструктор, що ініціалізує об'єкт команди з вказаним представленням даних.
+     *
+     * @param view представлення даних
+     */
+    public RestoreConsoleCommand(View view) {
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди.
+     *
+     * @return ключ команди
+     */
+    public char getKey() {
+        return '5';
+    }
+
+    /**
+     * Повертає рядок, що представляє команду.
+     *
+     * @return рядок команди
+     */
+    public String toString() {
+        return "Відновити";
+    }
+
+    /**
+     * Виконує команду, яка відновлює стан представлення даних.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання команди
+     */
+    @Override
+    public void execute() throws Exception {
+        view.viewRestore();
+    }
+}
+```
+
+SaveConsoleCommand.java
+```java
+package ex05;
+
+import ex03.View;
+
+import java.io.IOException;
+
+/**
+ * Клас, що представляє команду для консолі.
+ */
+public class SaveConsoleCommand implements ConsoleCommand {
+    private final View view;
+
+    /**
+     * Конструктор, що ініціалізує об'єкт команди з вказаним представленням даних.
+     *
+     * @param view представлення даних
+     */
+    public SaveConsoleCommand(View view) {
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди.
+     *
+     * @return ключ команди
+     */
+    public char getKey() {
+        return '4';
+    }
+
+    /**
+     * Повертає рядок, що представляє команду.
+     *
+     * @return рядок команди
+     */
+    public String toString() {
+        return "Зберегти";
+    }
+
+    /**
+     * Виконує команду, яка зберігає стан представлення даних.
+     *
+     * @throws IOException виняток, якщо сталася помилка під час виконання команди
+     */
+    @Override
+    public void execute() throws IOException {
+        view.viewSave();
+    }
+}
+```
+
+UndoConsoleCommand.java
+```java
+package ex05;
+
+import ex03.View;
+
+/**
+ * Клас, що представляє команду для консолі.
+ */
+public class UndoConsoleCommand implements ConsoleCommand {
+    private final View view;
+
+    /**
+     * Конструктор, що ініціалізує об'єкт команди з вказаним представленням даних.
+     *
+     * @param view представлення даних
+     */
+    public UndoConsoleCommand(View view) {
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди.
+     *
+     * @return ключ команди
+     */
+    public char getKey() {
+        return '6';
+    }
+
+    /**
+     * Повертає рядок, що представляє команду.
+     *
+     * @return рядок команди
+     */
+    public String toString() {
+        return "Відмінити";
+    }
+
+    /**
+     * Виконує команду, яка відновлює стан представлення даних.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання команди
+     */
+    @Override
+    public void execute() throws Exception {
+        view.viewRestore();
+    }
+}
+```
+
+ViewConsoleCommand.java
+```java
+package ex05;
+
+import ex03.View;
+
+import java.io.IOException;
+
+/**
+ * Клас, що представляє команду для консолі.
+ */
+public class ViewConsoleCommand implements ConsoleCommand {
+    private final View view;
+
+    /**
+     * Конструктор, що ініціалізує об'єкт команди з вказаним представленням даних.
+     *
+     * @param view представлення даних
+     */
+    public ViewConsoleCommand(View view) {
+        this.view = view;
+    }
+
+    /**
+     * Повертає ключ команди.
+     *
+     * @return ключ команди
+     */
+    @Override
+    public char getKey() {
+        return '1';
+    }
+
+    @Override
+    public String toString() {
+        return "Вивести результати";
+    }
+
+    /**
+     * Виконує команду, яка виводить результати на консоль.
+     *
+     * @throws IOException виняток, якщо сталася помилка під час виконання команди
+     */
+    @Override
+    public void execute() throws IOException {
+        System.out.println(" ");
+        view.viewShow();
+        System.out.println(" ");
+    }
+}
+```
+
+MainTest.java
+```java
+package ex05;
+
+import org.junit.Before;
+import org.junit.Test;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.Arrays;
+
+import static org.junit.Assert.assertEquals;
+
+public class MainTest {
+
+    private Menu menu;
+
+    @Before
+    public void setUp() {
+        menu = new Menu();
+    }
+
+    @Test
+    public void testAdd() {
+        ConsoleCommand command1 = new GenerateConsoleCommand(null);
+        ConsoleCommand command2 = new SaveConsoleCommand(null);
+
+        menu.add(command1);
+        menu.add(command2);
+
+        assertEquals(Arrays.asList(command1, command2), menu.getCommands());
+    }
+
+    @Test
+    public void testExecute() {
+        String simulatedInput = "1\n0\n";
+        InputStream savedStandardInputStream = System.in;
+        System.setIn(new ByteArrayInputStream(simulatedInput.getBytes()));
+
+        try {
+            menu.execute();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        System.setIn(savedStandardInputStream);
+    }
+}
+```
+Результат:
+
+![](images/ex05/1.png)
+
 
