@@ -1209,4 +1209,393 @@ public class MainTest {
 
 ![](images/ex05/1.png)
 
+## Завдання 6
+1.Продемонструвати можливість паралельної обробки елементів колекції (пошук мінімуму, максимуму, обчислення середнього значення, відбір за критерієм, статистична обробка тощо).
+2. Управління чергою завдань (команд) реалізувати за допомогою шаблону Worker Thread.
+Application.java
+
+```java
+package ex06;
+
+import ex03.View;
+import ex04.ViewableTable;
+import ex05.*;
+
+/**
+ * Клас, що представляє додаток, який використовується для управління меню та виконання команд.
+ */
+public class Application {
+    private static final Application instance = new Application(); // Єдиний екземпляр додатку
+    private final View view = new ViewableTable().getView();
+    private final Menu menu = new Menu();
+
+    private Application() {
+        // Приватний конструктор для заборони створення екземплярів ззовні класу
+    }
+
+    /**
+     * Метод для отримання єдиного екземпляру додатку.
+     *
+     * @return єдиний екземпляр додатку
+     */
+    public static Application getInstance() {
+        return instance;
+    }
+
+    /**
+     * Метод для запуску додатку, який додає команди до меню та виконує їх.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання
+     */
+    public void run() throws Exception {
+        menu.add(new ViewConsoleCommand(view));
+        menu.add(new GenerateConsoleCommand(view));
+        menu.add(new SaveConsoleCommand(view));
+        menu.add(new RestoreConsoleCommand(view));
+        menu.add(new UndoConsoleCommand(view));
+        menu.add(new ExecuteConsoleCommand(view));
+        menu.execute();
+    }
+}
+```
+
+AvgConsoleCommand.java
+```java
+package ex06;
+
+import ex02.Calc;
+import ex03.View;
+import ex05.ConsoleCommand;
+
+public class AvgConsoleCommand implements ConsoleCommand {
+    private final View view;
+    private boolean running = true;
+
+    public AvgConsoleCommand(View view) {
+        this.view = view;
+    }
+
+    public boolean isRunning() {
+        return this.running;
+    }
+
+    /**
+     * Метод, що повертає гарячу клавішу для команди консолі.
+     *
+     * @return гаряча клавіша для команди
+     */
+    @Override
+    public char getKey() {
+        return 0;
+    }
+
+    /**
+     * Метод для виконання команди.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання команди
+     */
+    @Override
+    public void execute() throws Exception {
+        int sum = view.viewItems().get(0).getNumber();
+
+        for (Calc calc : view.viewItems()) {
+            sum += calc.getNumber();
+        }
+
+        Thread.sleep(2000);
+
+        double result = sum / (double)view.viewItems().size();
+        this.running = false;
+
+        System.out.printf("Середнє значення: %.2f\n", result);
+    }
+}
+```
+
+CommandQueue.java
+```java
+package ex06;
+
+import ex05.Command;
+
+import java.util.Vector;
+
+/**
+ * Клас який реалізує чергу команд
+ */
+public class CommandQueue implements Queue {
+    /** Черга команд */
+    private final Vector<Command> tasks;
+    private boolean waiting;
+    private boolean shutdown;
+
+    public CommandQueue() {
+        tasks = new Vector<Command>();
+        waiting = false;
+        new Thread(new Worker()).start();
+    }
+
+    /**
+     * Додає задачу в чергу
+     *
+     * @param command задача
+     */
+    @Override
+    public void put(Command command) {
+        tasks.add(command);
+        if (waiting) {
+            synchronized (this) {
+                notifyAll();
+            }
+        }
+    }
+
+    /**
+     * Вилучає задачу з черги
+     */
+    @Override
+    public Command take() {
+        if (tasks.isEmpty()) {
+            synchronized (this) {
+                waiting = true;
+                try {
+                    wait();
+                } catch (InterruptedException ie) {
+                    waiting = false;
+                }
+            }
+        }
+        return tasks.remove(0);
+    }
+
+    public void shutdown() {
+        this.shutdown = true;
+    }
+
+    private class Worker implements Runnable {
+
+        /**
+         * Runs this operation.
+         */
+        @Override
+        public void run() {
+            while (!shutdown) {
+                Command command = take();
+                try {
+                    command.execute();
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+    }
+}
+```
+
+
+ExecuteConsoleCommand.java
+```java
+package ex06;
+
+import ex03.View;
+import ex05.ConsoleCommand;
+
+import java.util.concurrent.TimeUnit;
+
+public class ExecuteConsoleCommand implements ConsoleCommand {
+    private final View view;
+
+    public ExecuteConsoleCommand(View view) {
+        this.view = view;
+    }
+
+    /**
+     * Метод, що повертає гарячу клавішу для команди консолі.
+     *
+     * @return гаряча клавіша для команди
+     */
+    @Override
+    public char getKey() {
+        return '6';
+    }
+
+    @Override
+    public String toString() {
+        return "Виконати";
+    }
+
+    /**
+     * Метод для виконання команди.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання команди
+     */
+    @Override
+    public void execute() throws Exception {
+        System.out.println("Початок виконання потоків");
+
+        CommandQueue queue1 = new CommandQueue();
+        CommandQueue queue2 = new CommandQueue();
+
+        AvgConsoleCommand avgCommand = new AvgConsoleCommand(view);
+        MaxConsoleCommand maxCommand = new MaxConsoleCommand(view);
+        MinConsoleCommand minCommand = new MinConsoleCommand(view);
+
+        queue1.put(avgCommand);
+        queue2.put(maxCommand);
+        queue2.put(minCommand);
+
+        while (avgCommand.isRunning() || maxCommand.isRunning() || minCommand.isRunning()) {
+            TimeUnit.MICROSECONDS.sleep(100);
+        }
+
+        queue1.shutdown();
+        queue2.shutdown();
+
+        System.out.println("Всі потоки завершили свою роботу");
+    }
+}
+```
+
+
+Main.java
+```java
+package ex06;
+
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Application app = Application.getInstance();
+        app.run();
+    }
+}
+```
+
+
+MaxConsoleCommand.java
+```java
+package ex06;
+
+import ex02.Calc;
+import ex03.View;
+import ex05.ConsoleCommand;
+
+public class MaxConsoleCommand implements ConsoleCommand {
+    private final View view;
+    private boolean running = true;
+
+    public MaxConsoleCommand(View view) {
+        this.view = view;
+    }
+
+    public boolean isRunning() {
+        return this.running;
+    }
+
+    /**
+     * Метод, що повертає гарячу клавішу для команди консолі.
+     *
+     * @return гаряча клавіша для команди
+     */
+    @Override
+    public char getKey() {
+        return 0;
+    }
+
+    /**
+     * Метод для виконання команди.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання команди
+     */
+    @Override
+    public void execute() throws Exception {
+        int max = view.viewItems().get(0).getNumber();
+
+        for (Calc calc : view.viewItems()) {
+            if (max < calc.getNumber()) {
+                max = calc.getNumber();
+            }
+        }
+
+        Thread.sleep(1000);
+
+        this.running = false;
+
+        System.out.printf("Максимальне число: %d\n", max);
+    }
+}
+```
+
+
+MinConsoleCommand.java
+```java
+package ex06;
+
+import ex02.Calc;
+import ex03.View;
+import ex05.ConsoleCommand;
+
+public class MinConsoleCommand implements ConsoleCommand {
+    private final View view;
+    private boolean running = true;
+
+
+    public MinConsoleCommand(View view) {
+        this.view = view;
+    }
+
+    public boolean isRunning() {
+        return this.running;
+    }
+
+    /**
+     * Метод, що повертає гарячу клавішу для команди консолі.
+     *
+     * @return гаряча клавіша для команди
+     */
+    @Override
+    public char getKey() {
+        return 0;
+    }
+
+    /**
+     * Метод для виконання команди.
+     *
+     * @throws Exception виняток, якщо сталася помилка під час виконання команди
+     */
+    @Override
+    public void execute() throws Exception {
+        int min = view.viewItems().get(0).getNumber();
+
+        for (Calc calc : view.viewItems()) {
+            if (min > calc.getNumber()) {
+                min = calc.getNumber();
+            }
+        }
+
+        Thread.sleep(1000);
+
+        this.running = false;
+
+        System.out.printf("Мінімальне число: %d\n", min);
+    }
+}
+```
+
+Queue.java
+```java
+package ex06;
+
+import ex05.Command;
+
+public interface Queue {
+    /** Додає задачу в чергу */
+    public void put(Command command);
+    /** Вилучає задачу з черги */
+    public Command take();
+}
+```
+Результат:
+
+![](images/ex06/1.png)
+
+
 
