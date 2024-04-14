@@ -1597,5 +1597,299 @@ public interface Queue {
 
 ![](images/ex06/1.png)
 
+## Завдання 7
+1. Розробити ієрархію класів відповідно до шаблону Observer (java) та продемонструвати можливість обслуговування розробленої раніше колекції (об'єкт, що спостерігається, Observable) різними (не менше двох) спостерігачами (Observers) – відстеження змін, упорядкування, висновок, відображення і т.д.
+2. При реалізації ієрархії класів використати інструкції (Annotation). Відзначити особливості різних політик утримання анотацій (annotation retention policies). Продемонструвати підтримку класів концепції рефлексії (Reflection).
+3. Використовуючи раніше створені класи, розробити додаток, що відображає результати обробки колекції об'єктів у графічному вигляді
+4. Забезпечити діалоговий інтерфейс з користувачем та перемальовування графіка під час зміни значень елементів колекції.
+   
+EnterViewer.java
+```java
+package ex07;
+
+import java.util.Objects;
+
+/**
+ * Виконує розрахунки при натисненні на відповідну кнопку
+ */
+public class EnterViewer implements Viewer {
+    private final App app;
+
+    public EnterViewer(App app) {
+        this.app = app;
+    }
+
+    /**
+     * Оновлює спостерігача
+     */
+    @Override
+    public void update(String message) {
+        if (!Objects.equals(message, "Розрахувати")) {
+            return;
+        }
+
+        app.getView().viewInit(app.getCount());
+        app.updateTable();
+    }
+}
+```
+
+Main.java
+```java
+package ex07;
+
+public class Main {
+    public static void main(String[] args) {
+        new App();
+    }
+}
+```
+
+RestoreViewer.java
+```java
+package ex07;
+
+import java.util.Objects;
+
+/**
+ * Десеріалізує дані при натисненні на відповідну кнопку
+ */
+public class RestoreViewer implements Viewer {
+    private final App app;
+
+    public RestoreViewer(App app) {
+        this.app = app;
+    }
+
+    /**
+     * Оновлює спостерігача
+     */
+    @Override
+    public void update(String message) throws Exception {
+        if (!Objects.equals(message, "Відновити")) {
+            return;
+        }
+
+        app.getView().viewRestore();
+        app.updateTable();
+    }
+}
+```
+
+SaveViewer.java
+```java
+package ex07;
+
+import java.io.IOException;
+import java.util.Objects;
+
+/**
+ * Серіалізує дані при натисненні на відповідну кнопку
+ */
+public class SaveViewer implements Viewer {
+    private final App app;
+
+    public SaveViewer(App app) {
+        this.app = app;
+    }
+
+    /**
+     * Оновлює спостерігача
+     */
+    @Override
+    public void update(String message) throws IOException {
+        if (!Objects.equals(message, "Зберегти")) {
+            return;
+        }
+
+        app.getView().viewSave();
+    }
+}
+```
+
+UndoViewer.java
+```java
+package ex07;
+
+import java.util.Objects;
+
+/**
+ * Виконує команду відміни
+ */
+public class UndoViewer implements Viewer {
+    private final App app;
+
+    public UndoViewer(App app) {
+        this.app = app;
+    }
+
+    /**
+     * Оновлює спостерігача
+     */
+    @Override
+    public void update(String message) {
+        if (!Objects.equals(message, "Відмінити")) {
+            return;
+        }
+
+        app.getView().viewUndo();
+        app.updateTable();
+    }
+}
+```
+
+Viewed.java
+```java
+package ex07;
+
+/**
+ * Інтерфейс об'єкта який буде спостерігатися. Реалізацію шаблону Observer
+ */
+public interface Viewed {
+    /**
+     * Додає спостерігача
+     */
+    public void addViewer(Viewer viewer);
+
+    /**
+     * Оновлює спостерігачів
+     */
+    public void updateViewers(String message) throws Exception;
+}
+```
+
+Viewer.java
+```java
+package ex07;
+
+import java.io.IOException;
+
+/**
+ * Інтерфейс об'єкта який буде спостерігати. Реалізацію шаблону Observer
+ */
+public interface Viewer {
+    /**
+     * Оновлює спостерігача
+     */
+    public void update(String message) throws Exception;
+}
+
+```
+
+App.java
+```java
+package ex07;
+
+import ex03.View;
+import ex04.ViewableTable;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.ArrayList;
+
+/**
+ * Реалізує шаблон Observer
+ */
+public class App extends JFrame implements Viewed {
+    private final ArrayList<Viewer> viewers = new ArrayList<>();
+    View view = new ViewableTable().getView();
+
+    private JPanel Panel;
+    private JTable Table;
+    private JSpinner Count;
+    private JButton Enter;
+    private JButton Save;
+    private JButton Restore;
+    private JButton Undo;
+
+    public App() {
+        setContentPane(Panel);
+        setSize(800, 480);
+        setVisible(true);
+
+        OnClick listener = new OnClick();
+
+        Enter.addActionListener(listener);
+        Save.addActionListener(listener);
+        Restore.addActionListener(listener);
+        Undo.addActionListener(listener);
+
+        addViewer(new EnterViewer(this));
+        addViewer(new SaveViewer(this));
+        addViewer(new RestoreViewer(this));
+        addViewer(new UndoViewer(this));
+    }
+
+    /**
+     * Додає спостерігача
+     */
+    public void addViewer(Viewer viewer) {
+        viewers.add(viewer);
+    }
+
+    /**
+     * Оновлює спостерігачів
+     */
+    public void updateViewers(String message) throws Exception {
+        for (Viewer viewer: viewers) {
+            viewer.update(message);
+        }
+    }
+
+    /**
+     * Оновлює дані в таблиці
+     */
+    public void updateTable() {
+        Object[][] values = new Object[view.viewItems().size()][4];
+
+        for (int i = 0; i < values.length; i++) {
+            values[i][0] = view.viewItems().get(i).getNumber();
+            values[i][1] = view.viewItems().get(i).getBinRepresentation();
+            values[i][2] = view.viewItems().get(i).getOctRepresentation();
+            values[i][3] = view.viewItems().get(i).getHexRepresentation();
+        }
+
+        Table.setModel(new DefaultTableModel(values, new String[]{"Число", "Двійкове", "Вісімкове", "Шістнадцяткове"}));
+    }
+
+    /**
+     * Повертає кількість очікуваних результатів
+     */
+    public int getCount() {
+        return (Integer) Count.getValue();
+    }
+
+    /**
+     * Повертає екземпляр класу {@link View}
+     */
+    public View getView() {
+        return this.view;
+    }
+
+    /**
+     * Обробляє натиснення на кнопки
+     */
+    class OnClick implements ActionListener {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            if (e.getSource() instanceof JButton button) {
+                try {
+                    updateViewers(button.getText());
+                } catch (Exception ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        }
+    }
+}
+```
+Результат:
+
+![](images/ex07/1.png)
+![](images/ex07/2.png)
+![](images/ex07/3.png)
+
 
 
